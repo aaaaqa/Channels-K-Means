@@ -1,10 +1,14 @@
 package main
 
 import (
-	"fmt"
 	"math"
 	"math/rand"	
 	"time"
+	"net/http"
+	"fmt"
+	"io/ioutil"
+	"strings"
+	"strconv"
 )
 
 type KMeans struct {
@@ -121,14 +125,18 @@ func (kMeans *KMeans) Fit() {
 	}
 }
 
-func createArrayValues(min, max float64) [][]float64 {
+func readAsArray(first_line, second_line string) [][]float64 {
 	X := make([][]float64, 1000000)
+	
+	First_line := strings.Fields(first_line)
+	Second_line := strings.Fields(second_line)
+
 	for i := range X {
 		X[i] = make([]float64, 2)
-		for j := range X[i] {
-			X[i][j] = min + rand.Float64()*(max-min)
-		}
+		X[i][0], _ = strconv.ParseFloat(strings.Replace(First_line[i], ",", "", -1), 64)
+		X[i][1], _ = strconv.ParseFloat(strings.Replace(Second_line[i], ",", "", -1), 64)
 	}
+
 	return X
 }
 
@@ -137,9 +145,23 @@ func main() {
 	var sum time.Duration
 	totalDuration := make([]time.Duration, 1000)
 
+	response, err := http.Get("https://raw.githubusercontent.com/aaaaqa/Channels-K-Means/main/dataset.txt")
+	body, err := ioutil.ReadAll(response.Body)
+
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	response.Body.Close()
+
+	X := readAsArray(string(body)[:strings.IndexByte(string(body), '\n')], string(body)[strings.IndexByte(string(body), '\n'):])
+
+	fmt.Println("Datos leídos\n")
+
 	for i := 0; i < 1000; i++ {
 		start := time.Now()
-		X := createArrayValues(0.0, 1000.0)
+		
 		kmeans := NewKMeans(10, 100, X)
 		kmeans.Fit()
 		fmt.Println("Final Centroids:", kmeans.centroids)
