@@ -3,48 +3,43 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
+
 	//"os"
 	"strconv"
 	"strings"
 )
 
-var host string = "192.168.1.47"
+func readAsArray(s string) []float64 {
+	X := make([]float64, 1000000)
+	S := strings.Fields(s)
+	for i, number := range S {
+		X[i], _ = strconv.ParseFloat(strings.Replace(number, ",", "", -1), 64)
+	}
+
+	return X
+}
+
+var host string = "192.168.1.39"
 
 func fetchDataset(url string) ([]float64, []float64, error) {
-	resp, err := http.Get(url)
+	response, err := http.Get(url)
+	body, err := io.ReadAll(response.Body)
 	if err != nil {
+		fmt.Println(err)
 		return nil, nil, err
 	}
-	defer resp.Body.Close()
 
-	scanner := bufio.NewScanner(resp.Body)
-	scanner.Scan()
-	incomeLine := scanner.Text()
-	scanner.Scan()
-	ageLine := scanner.Text()
+	response.Body.Close()
 
-	incomes := strings.Split(incomeLine, ", ")
-	ages := strings.Split(ageLine, ", ")
+	incomes := readAsArray(string(body)[:strings.IndexByte(string(body), '\n')])
+	ages := readAsArray(string(body)[strings.IndexByte(string(body), '\n'):])
+	fmt.Println(incomes[:5])
+	fmt.Println(ages[:5])
 
-	var incomeData []float64
-	var ageData []float64
-	for _, incomeStr := range incomes {
-		income, err := strconv.ParseFloat(incomeStr, 64)
-		if err != nil {
-			return nil, nil, err
-		}
-		incomeData = append(incomeData, income)
-	}
-	for _, ageStr := range ages {
-		age, err := strconv.ParseFloat(ageStr, 64)
-		if err != nil {
-			return nil, nil, err
-		}
-		ageData = append(ageData, age)
-	}
-	return incomeData, ageData, nil
+	return incomes, ages, nil
 }
 
 func sendData(data [][]float64, address string) error {
