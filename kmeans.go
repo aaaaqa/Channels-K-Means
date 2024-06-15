@@ -1,120 +1,127 @@
-package main
+package kmeans
 
 import (
-	"bufio"
-	"fmt"
-	"net"
-	"os"
-	"strconv"
-	"strings"
+	"math"
+	"math/rand"
+	"sync"
 )
 
-var host string = "192.168.1.39"
-
-func hostNode(port string) error {
-	hostname := host + ":" + port
-	fmt.Println(hostname)
-	ls, err := net.Listen("tcp", hostname)
-	if err != nil {
-		return err
-	}
-	defer ls.Close()
-
-	fmt.Println("Nodo escuchando...")
-
-	for {
-		conn, err := ls.Accept()
-		if err != nil {
-			fmt.Println("Error en conexion:", err)
-			continue
-		}
-		go handleConnection(conn)
-	}
+type Point struct {
+	Age    float64
+	Income float64
 }
 
-func handleConnection(conn net.Conn) {
-	defer conn.Close()
-	br := bufio.NewReader(conn)
+type Centroid struct {
+	Age    float64
+	Income float64
+}
 
-	// Leer numero de clientes
-	numRowsStr, err := br.ReadString('\n')
-	if err != nil {
-		fmt.Println("Error en entrada de filas:", err)
-		return
-	}
-	numRows, err := strconv.Atoi(numRowsStr[:len(numRowsStr)-1])
-	if err != nil {
-		fmt.Println("Error convirtiendo numero de filas:", err)
-		return
-	}
+var numWorkers  = 4
 
-	// Leer cada fila de datos
-	var data [][]float64
-	for i := 0; i < numRows; i++ {
-		rowStr, err := br.ReadString('\n')
-		if err != nil {
-			fmt.Println("Error leyendo datos:", err)
-			return
+func InitializeCentroids(points []Point, k int) []Centroid {
+	centroids := make([]Centroid, k)
+	for i := range centroids {
+		centroids[i] = Centroid{
+			Age:    points[rand.Intn(len(points))].Age,
+			Income: points[rand.Intn(len(points))].Income,
 		}
+	}
+	return centroids
+}
 
-		var cliente []float64
-		words := strings.Fields(rowStr)
-		for _, word := range words {
-			// 64 for float64
-			val, err := strconv.ParseFloat(word, 64)
-			if err != nil {
-				fmt.Println("Error convirtiendo valor:", err)
-				return
+func AssignPointsToClusters(points []Point, centroids []Centroid, assignments chan<- []int, wg *sync.WaitGroup) {
+	defer wg.Done()
+	clusterAssignments := make([]int, len(points))
+	for i, point := range points {
+		minDist := math.MaxFloat64
+		minIndex := 0
+		for j, centroid := range centroids {
+			dist := Distance(point, centroid)
+			if dist < minDist {
+				minDist = dist
+				minIndex = j
 			}
-			cliente = append(cliente, val)
 		}
-		data = append(data, cliente)
+		clusterAssignments[i] = minIndex
 	}
-
-	// EN ESTA SECCION SE DEBE PROCESAR LOS DATOS
-	// PARA ACTUALIZAR LOS CENTROIDES
-	fmt.Println("Datos enviados:")
-	fmt.Println(data)
-
-	// DESPUES SE DEBEN ENVIAR LOS DATOS DE VUELTA AL CLIENTE
-	sendData(data, host+":8000")
+	assignments <- clusterAssignments
 }
 
-func sendData(data [][]float64, address string) error {
-	// LO QUE ESTA ACA ES PARA PRUEBAS, DEBERIA DEVOLVER LOS
-	// DATOS PARA ACTUALIZAR LOS CENTROIDES
-
-	conn, err := net.Dial("tcp", address)
-	if err != nil {
-		return err
+func Distance(p1, p2 []float64) float64 {
+	if len(p1) != len(p2) {
+		return math.MaxFloat64 // Return a large number if dimensions do not match
 	}
-	defer conn.Close()
-
-	br := bufio.NewWriter(conn)
-	// Numero de clientes
-	fmt.Fprintf(br, "%d\n", len(data))
-
-	// Enviar cada fila de datos
-	for _, cliente := range data {
-		for _, val := range cliente {
-			fmt.Fprintf(br, "%f ", val)
-		}
-		fmt.Fprintln(br)
+	var sum float64
+	for i := range p1 {
+		diff := p1[i] - p2[i]
+		sum += diff * diff
 	}
-
-	br.Flush()
-	return nil
+	return math.Sqrt(sum)
 }
 
-func main() {
-	// ingresar puerto
-	br := bufio.NewReader(os.Stdin)
-	fmt.Print("Ingrese el puerto: ")
-	port, _ := br.ReadString('\n')
-	port = strings.TrimSpace(port)
+func RecalculateCentroids(points []Point, assignments []int, k int) []Centroid {
+	sumAges := make([]float64, k)
+	sumIncomes := make([]float64, k)
+	counts := make([]int, k)
 
-	err := hostNode(port)
-	if err != nil {
-		fmt.Println("Error hosteando el nodo:", err)
+	for i, point := range points {
+		cluster := assignments[i]
+		sumAges[cluster] += point.Age
+		sumIncomes[cluster] += point.Income
+		counts[cluster]++
 	}
+
+	newCentroids := make([]Centroid, k)
+	for i := range newCentroids {
+		if counts[i] == 0 {
+			newCentroids[i] = Centroid{
+				Age:    points[rand.Intn(len(points))].Age,
+				Income: points[rand.Intn(len(points))].Income,
+			}
+		} else {
+			newCentroids[i] = Centroid{
+				Age:    sumAges[i] / float64(counts[i]),
+				Income: sumIncomes[i] / float64(counts[i]),
+			}
+		}
+	}
+	return newCentroids
+}
+
+func KMeans(points []Point, k, maxIter int) []Centroid {
+	centroids := InitializeCentroids(points, k)
+	assignments := make(chan []int, numWorkers)
+	var wg sync.WaitGroup
+
+	for i := 0; i < maxIter; i++ {
+		wg.Add(numWorkers)
+		for w := 0; w < numWorkers; w++ {
+			go AssignPointsToClusters(points[w*len(points)/numWorkers:(w+1)*len(points)/numWorkers], centroids, assignments, &wg)
+		}
+		wg.Wait()
+		close(assignments)
+
+		allAssignments := make([]int, len(points))
+		for assignment := range assignments {
+			for j, a := range assignment {
+				allAssignments[j] = a
+			}
+		}
+
+		newCentroids := RecalculateCentroids(points, allAssignments, k)
+		if CentroidsEqual(centroids, newCentroids) {
+			break
+		}
+		centroids = newCentroids
+	}
+	return centroids
+}
+
+func CentroidsEqual(a, b []Centroid) bool {
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
