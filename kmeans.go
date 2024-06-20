@@ -1,127 +1,127 @@
 package kmeans
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
-	"sync"
 )
 
-type Point struct {
-	Age    float64
-	Income float64
+type KMeans struct {
+	data       [][]float64
+	centroids  [][]float64
+	labels     []int
+	nClusters  int
+	maxIters   int
 }
 
-type Centroid struct {
-	Age    float64
-	Income float64
+func NewKMeans(data [][]float64, nClusters, maxIters int) *KMeans {
+	return &KMeans{
+		data:      data,
+		nClusters: nClusters,
+		maxIters:  maxIters,
+	}
 }
 
-var numWorkers  = 4
-
-func InitializeCentroids(points []Point, k int) []Centroid {
-	centroids := make([]Centroid, k)
-	for i := range centroids {
-		centroids[i] = Centroid{
-			Age:    points[rand.Intn(len(points))].Age,
-			Income: points[rand.Intn(len(points))].Income,
+func (kMeans *KMeans) Fit() {
+	kMeans.centroids = make([][]float64, kMeans.nClusters)
+	for i := range kMeans.centroids {
+		kMeans.centroids[i] = make([]float64, len(kMeans.data[0]))
+		for j := range kMeans.centroids[i] {
+			kMeans.centroids[i][j] = kMeans.data[rand.Intn(len(kMeans.data))][j]
 		}
 	}
-	return centroids
+
+	for iter := 0; iter < kMeans.maxIters; iter++ {
+		kMeans.assignLabels()
+		if kMeans.updateCentroids() {
+			fmt.Println("Converged.")
+			break
+		}
+	}
 }
 
-func AssignPointsToClusters(points []Point, centroids []Centroid, assignments chan<- []int, wg *sync.WaitGroup) {
-	defer wg.Done()
-	clusterAssignments := make([]int, len(points))
-	for i, point := range points {
-		minDist := math.MaxFloat64
-		minIndex := 0
-		for j, centroid := range centroids {
-			dist := Distance(point, centroid)
-			if dist < minDist {
-				minDist = dist
-				minIndex = j
+func (kMeans *KMeans) assignLabels() {
+	kMeans.labels = make([]int, len(kMeans.data))
+	N := len(kMeans.data) / 4
+	results := make(chan [2]int, len(kMeans.data))
+
+	for i := 0; i < 4; i++ {
+		go func(start, end int, data [][]float64, results chan<- [2]int) {
+			for k := start; k < end; k++ {
+				minDist := math.MaxFloat64
+				minIdx := 0
+				for j, c := range kMeans.centroids {
+					dist := euclideanDistance(data[k], c)
+					if dist < minDist {
+						minDist = dist
+						minIdx = j
+					}
+				}
+				results <- [2]int{k, minIdx}
+			}
+		}(i*N, (i+1)*N, kMeans.data, results)
+	}
+
+	for i := 0; i < len(kMeans.data); i++ {
+		result := <-results
+		kMeans.labels[result[0]] = result[1]
+	}
+	close(results)
+}
+
+func (kMeans *KMeans) updateCentroids() bool {
+	newCentroids := make([][]float64, kMeans.nClusters)
+	for i := range newCentroids {
+		newCentroids[i] = make([]float64, len(kMeans.data[0]))
+	}
+	counts := make([]int, kMeans.nClusters)
+
+	for i, label := range kMeans.labels {
+		for j, val := range kMeans.data[i] {
+			newCentroids[label][j] += val
+		}
+		counts[label]++
+	}
+
+	for i := range newCentroids {
+		for j := range newCentroids[i] {
+			if counts[i] > 0 {
+				newCentroids[i][j] /= float64(counts[i])
 			}
 		}
-		clusterAssignments[i] = minIndex
 	}
-	assignments <- clusterAssignments
+
+	if kMeans.checkConvergence(newCentroids) {
+		return true
+	}
+
+	kMeans.centroids = newCentroids
+	return false
 }
 
-func Distance(p1, p2 []float64) float64 {
-	if len(p1) != len(p2) {
-		return math.MaxFloat64 // Return a large number if dimensions do not match
+func (kMeans *KMeans) checkConvergence(newCentroids [][]float64) bool {
+	for i, c := range kMeans.centroids {
+		for j, v := range c {
+			if math.Abs(v-newCentroids[i][j]) > 1e-2 {
+				return false
+			}
+		}
 	}
-	var sum float64
-	for i := range p1 {
-		diff := p1[i] - p2[i]
-		sum += diff * diff
+	return true
+}
+
+func euclideanDistance(a, b []float64) float64 {
+	sum := 0.0
+	for i := range a {
+		sum += (a[i] - b[i]) * (a[i] - b[i])
 	}
 	return math.Sqrt(sum)
 }
 
-func RecalculateCentroids(points []Point, assignments []int, k int) []Centroid {
-	sumAges := make([]float64, k)
-	sumIncomes := make([]float64, k)
-	counts := make([]int, k)
-
-	for i, point := range points {
-		cluster := assignments[i]
-		sumAges[cluster] += point.Age
-		sumIncomes[cluster] += point.Income
-		counts[cluster]++
-	}
-
-	newCentroids := make([]Centroid, k)
-	for i := range newCentroids {
-		if counts[i] == 0 {
-			newCentroids[i] = Centroid{
-				Age:    points[rand.Intn(len(points))].Age,
-				Income: points[rand.Intn(len(points))].Income,
-			}
-		} else {
-			newCentroids[i] = Centroid{
-				Age:    sumAges[i] / float64(counts[i]),
-				Income: sumIncomes[i] / float64(counts[i]),
-			}
-		}
-	}
-	return newCentroids
+func (kMeans *KMeans) Centroids() [][]float64 {
+	return kMeans.centroids
 }
 
-func KMeans(points []Point, k, maxIter int) []Centroid {
-	centroids := InitializeCentroids(points, k)
-	assignments := make(chan []int, numWorkers)
-	var wg sync.WaitGroup
-
-	for i := 0; i < maxIter; i++ {
-		wg.Add(numWorkers)
-		for w := 0; w < numWorkers; w++ {
-			go AssignPointsToClusters(points[w*len(points)/numWorkers:(w+1)*len(points)/numWorkers], centroids, assignments, &wg)
-		}
-		wg.Wait()
-		close(assignments)
-
-		allAssignments := make([]int, len(points))
-		for assignment := range assignments {
-			for j, a := range assignment {
-				allAssignments[j] = a
-			}
-		}
-
-		newCentroids := RecalculateCentroids(points, allAssignments, k)
-		if CentroidsEqual(centroids, newCentroids) {
-			break
-		}
-		centroids = newCentroids
-	}
-	return centroids
-}
-
-func CentroidsEqual(a, b []Centroid) bool {
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
+func (kMeans *KMeans) Labels() []int {
+	return kMeans.labels
 }
