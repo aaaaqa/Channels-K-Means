@@ -6,42 +6,46 @@ import (
 	"net"
 	"strconv"
 	"strings"
-
 	"kmeans"
 )
 
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
 	scanner := bufio.NewScanner(conn)
-	var points []kmeans.Point
+	var data [][]float64
 	for scanner.Scan() {
 		line := scanner.Text()
-		values := strings.Fields(line)
-		if len(values) == 2 {
-			income, _ := strconv.ParseFloat(values[0], 64)
-			age, _ := strconv.ParseFloat(values[1], 64)
-			points = append(points, kmeans.Point{Age: age, Income: income})
+		fields := strings.Fields(line)
+		row := make([]float64, len(fields))
+		for i, field := range fields {
+			row[i], _ = strconv.ParseFloat(field, 64)
 		}
+		data = append(data, row)
 	}
-	centroids := kmeans.KMeans(points, 3, 100)
-	fmt.Println("Calculated centroids:", centroids)
+	fmt.Println("Data received:", data[:5])
+
+	k := 3
+	maxIter := 100
+	kmeansInstance := kmeans.NewKMeans(data, k, maxIter)
+	kmeansInstance.Fit()
+
+	fmt.Println("Centroids:", kmeansInstance.Centroids())
+	fmt.Println("Labels:", kmeansInstance.Labels())
 }
 
 func main() {
-	port := "8001" // Change to appropriate port
-	ls, err := net.Listen("tcp", ":"+port)
+	ln, err := net.Listen("tcp", ":8001")
 	if err != nil {
-		fmt.Println("Error hosting server:", err)
+		fmt.Println("Error starting server:", err)
 		return
 	}
-	defer ls.Close()
-
-	fmt.Println("Server listening on port", port)
+	defer ln.Close()
+	fmt.Println("Server is listening...")
 
 	for {
-		conn, err := ls.Accept()
+		conn, err := ln.Accept()
 		if err != nil {
-			fmt.Println("Error in connection:", err)
+			fmt.Println("Error accepting connection:", err)
 			continue
 		}
 		go handleConnection(conn)
