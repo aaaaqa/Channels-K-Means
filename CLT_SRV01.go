@@ -6,7 +6,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-
 	//"os"
 	"strconv"
 	"strings"
@@ -22,7 +21,7 @@ func readAsArray(s string) []float64 {
 	return X
 }
 
-var host string = "192.168.1.39"
+var host string = "192.168.1.47"
 
 func fetchDataset(url string) ([]float64, []float64, error) {
 	response, err := http.Get(url)
@@ -73,7 +72,7 @@ func main() {
 		data[i] = []float64{incomes[i], ages[i]}
 	}
 
-	addresses := []string{host + ":8001", host + ":8002"} // Add server addresses
+	addresses := []string{host + ":8001"} // Add server addresses
 	for _, address := range addresses {
 		err = sendData(data, address)
 		if err != nil {
