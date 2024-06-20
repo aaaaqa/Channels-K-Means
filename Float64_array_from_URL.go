@@ -1,40 +1,52 @@
 package main
 
 import (
-	"net/http"
-	"fmt"
-	"io/ioutil"
-	"strings"
-	"strconv"
+    "fmt"
+    "os"
+    "math/rand"
+    "strconv"
+    "math"
 )
 
-func readAsArray(s string) []float64 {
-	X := make([]float64, 1000000)
-	S := strings.Fields(s)
-	for i, number := range S {
-		X[i], _ = strconv.ParseFloat(strings.Replace(number, ",", "", -1), 64)
-	}
+func round(num float64) int {
+    return int(num + math.Copysign(0.5, num))
+}
 
-	return X
+func toFixed(num float64, precision int) float64 {
+    output := math.Pow(10, float64(precision))
+    return float64(round(num * output)) / output
 }
 
 func main() {
+    N := 1000000
+    min := 1000.0
+    max := 15000.0
+    f, err := os.Create("dataset.txt")
 
-	response, err := http.Get("https://raw.githubusercontent.com/aaaaqa/Channels-K-Means/main/dataset.txt")
+    if err != nil {
+        fmt.Println("")
+    }
 
-	body, err := ioutil.ReadAll(response.Body)
+    for j:= 0; j < N; j++ {
+        f.WriteString(strconv.FormatFloat(toFixed(min + rand.Float64() * (max - min), 2), 'f', -1, 64))
+        if j == N - 1 {
+            f.WriteString("\n")
+            continue
+        }
+        f.WriteString(", ")
+    }
 
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+    min = 18.0
+    max = 80.0
 
-	response.Body.Close()
+    for j:= 0; j < N; j++ {
+        f.WriteString(strconv.FormatFloat(math.Round(toFixed(min + rand.Float64() * (max - min), 2)), 'f', -1, 64))
+        if j == N - 1 {
+            f.WriteString("\n")
+            continue
+        }
+        f.WriteString(", ")
+    }
 
-	X := readAsArray(string(body)[:strings.IndexByte(string(body), '\n')])
-	Y := readAsArray(string(body)[strings.IndexByte(string(body), '\n'):])
-
-	fmt.Println(X[:5])
-	fmt.Println(Y[:5])
-
+    f.Close()
 }
