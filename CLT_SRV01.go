@@ -21,7 +21,7 @@ func readAsArray(s string) []float64 {
 	return X
 }
 
-var host string = "192.168.1.47"
+var host string = "26.114.63.141"
 
 func fetchDataset(url string) ([]float64, []float64, error) {
 	response, err := http.Get(url)
@@ -59,6 +59,18 @@ func sendData(data [][]float64, address string) error {
 	return nil
 }
 
+func handleConnection(conn net.Conn) {
+	defer conn.Close()
+	scanner := bufio.NewReader(conn)
+	centroids, _ := scanner.ReadString('\n')
+	temp_labels, _ := scanner.ReadString('\n')
+	temp_labels = strings.Trim(temp_labels, "[]")
+	labels := strings.Split(temp_labels, " ")
+
+	fmt.Println("Data received:", centroids)
+	fmt.Println("Data received:", labels[:5])
+}
+
 func main() {
 	url := "https://raw.githubusercontent.com/aaaaqa/Channels-K-Means/main/dataset.txt"
 	incomes, ages, err := fetchDataset(url)
@@ -78,5 +90,20 @@ func main() {
 		if err != nil {
 			fmt.Println("Error sending data to", address, ":", err)
 		}
+	}
+
+	ln, err := net.Listen("tcp", ":8002")
+	if err != nil {
+		fmt.Println("Error starting server:", err)
+		return
+	}
+	defer ln.Close()
+	fmt.Println("Client is listening...")
+
+	conn, err := ln.Accept()
+	if err != nil {
+		fmt.Println("Error accepting connection:", err)
+	} else {
+		handleConnection(conn)
 	}
 }

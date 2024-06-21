@@ -9,6 +9,24 @@ import (
 	"kmeans"
 )
 
+var host string = "26.114.63.141"
+
+func sendData(centroids [][]float64, labels []int, address string) error {
+	conn, err := net.Dial("tcp", address)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	writer := bufio.NewWriter(conn)
+	fmt.Fprintf(writer, "%f ", centroids)
+	fmt.Fprintln(writer)
+	fmt.Fprintln(writer, labels)
+
+	writer.Flush()
+	return nil
+}
+
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
 	scanner := bufio.NewScanner(conn)
@@ -29,8 +47,13 @@ func handleConnection(conn net.Conn) {
 	kmeansInstance := kmeans.NewKMeans(data, k, maxIter)
 	kmeansInstance.Fit()
 
-	fmt.Println("Centroids:", kmeansInstance.Centroids())
-	fmt.Println("Labels:", kmeansInstance.Labels())
+	err := sendData(kmeansInstance.Centroids(), kmeansInstance.Labels(), host + ":8002")
+	if err != nil {
+		fmt.Println("Error sending data to", host + ":8002", ":", err)
+	}
+
+	//fmt.Println("Centroids:", kmeansInstance.Centroids())
+	//fmt.Println("Labels:", kmeansInstance.Labels())
 }
 
 func main() {
