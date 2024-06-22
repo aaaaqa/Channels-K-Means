@@ -3,13 +3,13 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"kmeans"
 	"net"
 	"strconv"
 	"strings"
-	"kmeans"
 )
 
-var host string = "26.114.63.141"
+var host string = "192.168.1.39"
 
 func sendData(centroids [][]float64, labels []int, address string) error {
 	conn, err := net.Dial("tcp", address)
@@ -18,8 +18,12 @@ func sendData(centroids [][]float64, labels []int, address string) error {
 	}
 	defer conn.Close()
 
+	fmt.Println("Centroids:", centroids)
+
 	writer := bufio.NewWriter(conn)
-	fmt.Fprintf(writer, "%f ", centroids)
+	for _, centroid := range centroids {
+		fmt.Fprintf(writer, "%f,", centroid)
+	}
 	fmt.Fprintln(writer)
 	fmt.Fprintln(writer, labels)
 
@@ -47,9 +51,9 @@ func handleConnection(conn net.Conn) {
 	kmeansInstance := kmeans.NewKMeans(data, k, maxIter)
 	kmeansInstance.Fit()
 
-	err := sendData(kmeansInstance.Centroids(), kmeansInstance.Labels(), host + ":8002")
+	err := sendData(kmeansInstance.Centroids(), kmeansInstance.Labels(), host+":8002")
 	if err != nil {
-		fmt.Println("Error sending data to", host + ":8002", ":", err)
+		fmt.Println("Error sending data to", host+":8002", ":", err)
 	}
 
 	//fmt.Println("Centroids:", kmeansInstance.Centroids())
