@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <link type="text/css" rel="stylesheet" href="styles.css">
+        <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+        <title>Etiquetas de K-Means</title>
+    </head>
+    <header style="background-color: lightblue;height: 5vh; display: flex; align-items: center;">
+        <ul style="margin: 0; list-style-type: none; font-weight: bold; font-family: Arial; padding-left: 20px;">
+            <li style="float: left;"><a href="mainPage" style="padding: 16px; text-decoration: none;color: black;">Pagina Principal</a></li>
+            <li style="float: left;"><a href="train" style="padding: 16px; text-decoration: none;color: black;">Entrenar</a></li>
+        </ul>
+    </header>    
+    <body style="margin: 0;">
+        <div id="myPlot" style="display: flex; justify-content: center; width:100%;"></div>
+        <div style="display: flex; justify-content: center;">
+            <h1 style="margin: 0;">Etiquetas:</h1>
+        </div>
+        <div style="display: flex; justify-content: center; width:100%;">
+            <ul style="list-style-type: none; padding: 0;">
+                {{range $k, $v := .Label_count}}
+                <li style="padding: 10px; font-size: 20px;">Datos en el centroide {{$k}}: {{$v}}</li>
+                {{end}}
+            </ul>
+        </div>
+        <div style="display: flex; justify-content: center; padding-top: 15px;">
+            <button style="border-radius: 20px; font-size: 16px; margin: 0 10px;"><a href="getCentroids" style="text-decoration: none;color: black; font-weight: bold;">¡Obten tus centroides!</a></button>
+        </div>
+    </body>
+    <script>
+        let data = [];
+        let temporal_income_array = {};
+        let temporal_age_array = {};
+        
+        var age = {{.Age}};
+        var income = {{.Income}};
+        var label = {{.Label}};
+    
+        label.forEach((lbl, i) => {
+            const labelNum = Number(lbl);
+            if (!temporal_income_array[labelNum]) {
+                temporal_income_array[labelNum] = [];
+                temporal_age_array[labelNum] = [];
+            }
+            temporal_income_array[labelNum].push(income[i]);
+            temporal_age_array[labelNum].push(age[i]);
+        });
+    
+        Object.keys(temporal_income_array).forEach((key, i) => {
+            data.push({
+                x: temporal_age_array[key],
+                y: temporal_income_array[key],
+                type: 'scattergl',
+                mode: 'markers',
+                showlegend: false,
+                name: `Centroide ${key}`
+            });
+        });
+    
+        const layout = {
+            xaxis: {range: [Math.min(age), Math.max(age)], title: "Edad"},
+            yaxis: {range: [Math.min(income), Math.max(income)], title: "Ingresos Mensuales"},
+            title: "Ingresos Mensuales vs Edad"
+        };
+    
+        // Display using Plotly
+        Plotly.newPlot("myPlot", data, layout);
+    </script>    
+</html>
