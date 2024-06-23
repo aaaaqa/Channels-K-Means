@@ -18,10 +18,12 @@ var centroids []string
 var labels []string
 
 func readAsArray(s string) []float64 {
-	X := make([]float64, 1000000)
-	S := strings.Fields(s)
-	for i, number := range S {
-		X[i], _ = strconv.ParseFloat(strings.Replace(number, ",", "", -1), 64)
+	// X := make([]float64, 1000000)
+	var X []float64
+	S := strings.Split(s, ", ")
+	for _, s := range S {
+		temp, _ := strconv.ParseFloat(s, 64)
+		X = append(X, temp)
 	}
 
 	return X
