@@ -115,7 +115,7 @@ func trainKmeans(res http.ResponseWriter, req *http.Request) {
 	//res.Header().Set("Content-Type", "application/json")
 
 	// Fetching the data
-	url := "https://raw.githubusercontent.com/aaaaqa/Channels-K-Means/api/dataset1.txt"
+	url := "https://raw.githubusercontent.com/aaaaqa/Channels-K-Means/main/dataset.txt"
 	incomes, ages, err := fetchDataset(url)
 	if err != nil {
 		fmt.Println("Error buscando dataset:", err)
@@ -175,7 +175,7 @@ func getLabels(res http.ResponseWriter, req *http.Request) {
 	// Count labels
 	labelCount := make(map[int]int)
 	for _, label := range labels {
-		i, err := strconv.Atoi(label)
+		i, err := strconv.Atoi(strings.TrimSpace(strings.Replace(label, "]", "", -1)))
 		if err != nil {
 			log.Printf("Error al convertir label '%s' a entero: %v", label, err)
 			continue
