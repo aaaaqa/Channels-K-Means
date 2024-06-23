@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -15,13 +14,23 @@ import (
 	"html/template"
 )
 
+type Variables struct {
+	Label_count map[int]int
+	Centroid []string
+	Income []float64
+	Age []float64
+	Label []string
+}
+
 var centroids []string
 var labels []string
+var incomes []float64
+var ages []float64
 
 func readAsArray(s string) []float64 {
     // X := make([]float64, 1000000)
     var X []float64
-    S := strings.Split(s, ", ")
+    S := strings.Split(strings.TrimSpace(s), ", ")
     for _, s := range S {
         temp, _ := strconv.ParseFloat(s, 64)
         X = append(X, temp)
@@ -42,8 +51,8 @@ func fetchDataset(url string) ([]float64, []float64, error) {
 
 	response.Body.Close()
 
-	incomes := readAsArray(string(body)[:strings.IndexByte(string(body), '\n')])
-	ages := readAsArray(string(body)[strings.IndexByte(string(body), '\n'):])
+	incomes = readAsArray(string(body)[:strings.IndexByte(string(body), '\n')])
+	ages = readAsArray(string(body)[strings.IndexByte(string(body), '\n'):])
 	fmt.Println(incomes[:5])
 	fmt.Println(ages[:5])
 
@@ -154,9 +163,6 @@ func trainKmeans(res http.ResponseWriter, req *http.Request) {
 }
 
 func getLabels(res http.ResponseWriter, req *http.Request) {
-	
-	
-
 	// Build response
 	log.Println("Buscando labels...")
 	//res.Header().Set("Content-Type", "application/json")
@@ -167,7 +173,6 @@ func getLabels(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 	// Respond as json
-
 	label_count := make(map[int]int)
 
 	for _, label := range labels {
@@ -175,10 +180,14 @@ func getLabels(res http.ResponseWriter, req *http.Request) {
 		label_count[i] = label_count[i] + 1
 	}
 
-	print(len(labels))
+	var Variable Variables
+	Variable = Variables {
+		Label_count: label_count,
+		Income: incomes,
+		Age: ages,
+		Label: labels,
+	}
 
-	//jsonBytes, _ := json.Marshal(labels)
-	//io.WriteString(res, string(jsonBytes))
 	log.Println("Labels encontrados!")
 
 	var fileName = "labels.html"
@@ -187,7 +196,7 @@ func getLabels(res http.ResponseWriter, req *http.Request) {
 		fmt.Println("Error parseando el archivo: ", err)
 		return
 	}
-	err = t.ExecuteTemplate(res, fileName, label_count)
+	err = t.ExecuteTemplate(res, fileName, Variable)
 	if err != nil {
 		fmt.Println("Error ejecutando el archivo: ", err)
 		return
@@ -196,21 +205,9 @@ func getLabels(res http.ResponseWriter, req *http.Request) {
 
 func getCentroids(res http.ResponseWriter, req *http.Request) {
 
-	var fileName = "centroids.html"
-	t, err := template.ParseFiles(fileName)
-	if err != nil {
-		fmt.Println("Error parseando el archivo: ", err)
-		return
-	}
-	err = t.ExecuteTemplate(res, fileName, nil)
-	if err != nil {
-		fmt.Println("Error ejecutando el archivo: ", err)
-		return
-	}
-
 	// Build response
 	log.Println("Buscando centroides...")
-	res.Header().Set("Content-Type", "application/json")
+	//res.Header().Set("Content-Type", "application/json")
 	// Check for errors
 	if labels == nil {
 		io.WriteString(res, "No hay centroides. Entrena el modelo primero.")
@@ -219,9 +216,30 @@ func getCentroids(res http.ResponseWriter, req *http.Request) {
 	}
 	// Respond as json
 	
-	jsonBytes, _ := json.Marshal(centroids)
-	io.WriteString(res, string(jsonBytes))
-	log.Println("Centroides encontrados!")
+	//jsonBytes, _ := json.Marshal(centroids)
+	//io.WriteString(res, string(jsonBytes))
+	//log.Println("Centroides encontrados!")
+
+	var Variable Variables
+	
+	Variable = Variables {
+		Centroid: centroids,
+		Income: incomes,
+		Age: ages,
+		Label: labels,
+	}
+
+	var fileName = "centroids.html"
+	t, err := template.ParseFiles(fileName)
+	if err != nil {
+		fmt.Println("Error parseando el archivo: ", err)
+		return
+	}
+	err = t.ExecuteTemplate(res, fileName, Variable)
+	if err != nil {
+		fmt.Println("Error ejecutando el archivo: ", err)
+		return
+	}
 }
 
 func mainPage(w http.ResponseWriter, r *http.Request) {

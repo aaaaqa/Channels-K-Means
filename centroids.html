@@ -3,13 +3,111 @@
     <head>
         <meta charset="UTF-8">
         <link type="text/css" rel="stylesheet" href="styles.css">
-        <title>Entrenamiento de K-Means</title>
+        <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+        <title>Centroides de K-Means</title>
     </head>
     <header style="background-color: lightblue;height: 5vh; display: flex; align-items: center;">
-        <ul style="margin: 0; list-style-type: none; font-weight: bold; padding-left: 20px;">
-            <li><a href="mainPage" style="text-decoration: none;color: black;">Pagina Principal</a></li>
+        <ul style="margin: 0; list-style-type: none; font-weight: bold; font-family: Arial; padding-left: 20px;">
+            <li style="float: left;"><a href="mainPage" style="padding: 16px; text-decoration: none;color: black;">Pagina Principal</a></li>
+            <li style="float: left;"><a href="train" style="padding: 16px; text-decoration: none;color: black;">Entrenar</a></li>
         </ul>
     </header>
     <body style="margin: 0;">
+        <div id="myPlot" style="display: flex; justify-content: center; width:100%;"></div>
+        <div style="display: flex; justify-content: center;">
+            <h1 style="margin: 0;">Centroides:</h1>
+        </div>
+        <div style="display: flex; justify-content: center; width:100%;">
+            <ul style="list-style-type: none; padding: 0;">
+                {{range $k, $v := .Centroid}}
+                <li style="padding: 10px; font-size: 20px;">Datos en el centroide {{$k}}: {{$v}}</li>
+                {{end}}
+            </ul>
+        </div>
+        <div style="display: flex; justify-content: center; padding-top: 15px;">
+            <button style="border-radius: 20px; font-size: 16px; margin: 0 10px;"><a href="getLabels" style="text-decoration: none;color: black; font-weight: bold;">¡Obten tus etiquetas!</a></button>
+        </div>
     </body>
+    <script>
+        function convertTo2DFloatArray(stringArray) {
+            return stringArray.map(str => {
+                str = str.replace(/[\[\]]/g, '');
+                let parts = str.split(' ');
+                return parts.map(parseFloat);
+            });
+        }
+
+        function separateColumns(float2DArray) {
+            let column1 = [];
+            let column2 = [];
+            
+            float2DArray.forEach(row => {
+                column1.push(row[0]);
+                column2.push(row[1]);
+            });
+            
+            return [column2, column1];
+        }   
+
+        let data = [];
+        let temporal_income_array = {};
+        let temporal_age_array = {};
+        let value = [];
+        var age = {{.Age}};
+        var income = {{.Income}};
+        var label = {{.Label}};
+        let [centroid_x, centroid_y] = separateColumns(convertTo2DFloatArray({{.Centroid}}));
+
+        // Initialize temporal arrays
+        for (let i = 0; i < label.length; i++) {
+            let labelNum = Number(label[i]);
+            temporal_income_array[labelNum] = [];
+            temporal_age_array[labelNum] = [];
+        }
+
+        for (let i = 0; i < age.length; i++) {
+            let labelNum = Number(label[i]);
+            temporal_income_array[labelNum].push(income[i]);
+            temporal_age_array[labelNum].push(age[i]);
+        }
+
+        for (let i = 0; i < Object.keys(temporal_income_array).length; i++) {
+            let num = "C"
+            let value = {
+                x: temporal_age_array[i],
+                y: temporal_income_array[i],
+                mode: 'markers',
+                showlegend: false,
+                name: num.concat(" ", i)
+            };
+            data.push(value);
+        }
+
+        data.push({
+            x: centroid_x,
+            y: centroid_y,
+            mode: 'markers',
+            showlegend: false,
+            name: "Centroide",
+            marker: {
+                color: 'rgb(255, 255, 255)',
+                size: 10,
+                line: {
+                color: 'rgb(0, 0, 0)',
+                width: 2
+                }
+            }
+        });
+
+        console.log(data);
+            
+        const layout = {
+            xaxis: {range: [Math.min(age), Math.max(age)], title: "Edad"},
+            yaxis: {range: [Math.min(income), Math.max(income)], title: "Ingresos Mensuales"},  
+            title: "Ingresos Mensuales vs Edad"
+        };
+
+        // Display using Plotly
+        Plotly.newPlot("myPlot", data, layout);
+    </script>
 </html>
