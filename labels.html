@@ -28,50 +28,44 @@
             <button style="border-radius: 20px; font-size: 16px; margin: 0 10px;"><a href="getCentroids" style="text-decoration: none;color: black; font-weight: bold;">¡Obten tus centroides!</a></button>
         </div>
     </body>
-    <script>    
+    <script>
         let data = [];
         let temporal_income_array = {};
         let temporal_age_array = {};
-        var age = {{.Age}};
-        var income = {{.Income}};
-        var label = {{.Label}};
-
-        // Initialize temporal arrays
-        for (let i = 0; i < label.length; i++) {
-            let labelNum = Number(label[i]);
+        
+        const age = {{.Age}};
+        const income = {{.Income}};
+        const label = {{.Label}};
+    
+        // Initialize and populate temporal arrays
+        label.forEach((lbl, i) => {
+            const labelNum = Number(lbl);
             if (!temporal_income_array[labelNum]) {
                 temporal_income_array[labelNum] = [];
-            }
-            if (!temporal_age_array[labelNum]) {
                 temporal_age_array[labelNum] = [];
             }
-        }
-
-        for (let i = 0; i < age.length; i++) {
-            let labelNum = Number(label[i]);
             temporal_income_array[labelNum].push(income[i]);
             temporal_age_array[labelNum].push(age[i]);
-        }
-
-        for (let i = 0; i < Object.keys(temporal_income_array).length; i++) {
-            let num = "Centroide"
-            let value = {
-                x: temporal_age_array[i],
-                y: temporal_income_array[i],
+        });
+    
+        Object.keys(temporal_income_array).forEach((key, i) => {
+            data.push({
+                x: temporal_age_array[key],
+                y: temporal_income_array[key],
+                type: 'scattergl',
                 mode: 'markers',
                 showlegend: false,
-                name: num.concat(" ", i)
-            };
-            data.push(value);
-        }
-
+                name: `Centroide ${key}`
+            });
+        });
+    
         const layout = {
-            xaxis: {range: [Math.min(age), Math.max(age)], title: "Edad"},
-            yaxis: {range: [Math.min(income), Math.max(income)], title: "Ingresos Mensuales"},  
+            xaxis: {range: [Math.min(...age), Math.max(...age)], title: "Edad"},
+            yaxis: {range: [Math.min(...income), Math.max(...income)], title: "Ingresos Mensuales"},
             title: "Ingresos Mensuales vs Edad"
         };
-
+    
         // Display using Plotly
         Plotly.newPlot("myPlot", data, layout);
-    </script>
+    </script>    
 </html>

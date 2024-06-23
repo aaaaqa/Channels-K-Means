@@ -163,83 +163,88 @@ func trainKmeans(res http.ResponseWriter, req *http.Request) {
 }
 
 func getLabels(res http.ResponseWriter, req *http.Request) {
-	// Build response
 	log.Println("Buscando labels...")
-	//res.Header().Set("Content-Type", "application/json")
+
 	// Check for errors
 	if labels == nil {
-		io.WriteString(res, "No hay labels. Entrena el modelo primero.")
+		http.Error(res, "No hay labels. Entrena el modelo primero.", http.StatusNotFound)
 		log.Println("No hay labels. Entrena el modelo primero.")
 		return
 	}
-	// Respond as json
-	label_count := make(map[int]int)
 
+	// Count labels
+	labelCount := make(map[int]int)
 	for _, label := range labels {
-		i, _ := strconv.Atoi(label)
-		label_count[i] = label_count[i] + 1
+		i, err := strconv.Atoi(label)
+		if err != nil {
+			log.Printf("Error al convertir label '%s' a entero: %v", label, err)
+			continue
+		}
+		labelCount[i] = labelCount[i] + 1
 	}
 
-	var Variable Variables
-	Variable = Variables {
-		Label_count: label_count,
-		Income: incomes,
-		Age: ages,
-		Label: labels,
+	// Build response
+	var variable Variables
+	variable = Variables{
+		Label_count: labelCount,
+		Income:      incomes,
+		Age:         ages,
+		Label:       labels,
 	}
 
 	log.Println("Labels encontrados!")
 
-	var fileName = "labels.html"
+	const fileName = "labels.html"
 	t, err := template.ParseFiles(fileName)
 	if err != nil {
-		fmt.Println("Error parseando el archivo: ", err)
+		log.Printf("Error parseando el archivo: %v", err)
+		http.Error(res, "Error parseando el archivo", http.StatusInternalServerError)
 		return
 	}
-	err = t.ExecuteTemplate(res, fileName, Variable)
+
+	err = t.ExecuteTemplate(res, fileName, variable)
 	if err != nil {
-		fmt.Println("Error ejecutando el archivo: ", err)
+		log.Printf("Error ejecutando el archivo: %v", err)
+		http.Error(res, "Error ejecutando el archivo", http.StatusInternalServerError)
 		return
 	}
 }
 
 func getCentroids(res http.ResponseWriter, req *http.Request) {
-
-	// Build response
 	log.Println("Buscando centroides...")
-	//res.Header().Set("Content-Type", "application/json")
+
 	// Check for errors
 	if labels == nil {
-		io.WriteString(res, "No hay centroides. Entrena el modelo primero.")
+		http.Error(res, "No hay centroides. Entrena el modelo primero.", http.StatusNotFound)
 		log.Println("No hay centroides. Entrena el modelo primero.")
 		return
 	}
-	// Respond as json
-	
-	//jsonBytes, _ := json.Marshal(centroids)
-	//io.WriteString(res, string(jsonBytes))
-	//log.Println("Centroides encontrados!")
 
-	var Variable Variables
-	
-	Variable = Variables {
+	// Build response
+	var variable Variables
+	variable = Variables{
 		Centroid: centroids,
-		Income: incomes,
-		Age: ages,
-		Label: labels,
+		Income:   incomes,
+		Age:      ages,
+		Label:    labels,
 	}
 
-	var fileName = "centroids.html"
+	const fileName = "centroids.html"
 	t, err := template.ParseFiles(fileName)
 	if err != nil {
-		fmt.Println("Error parseando el archivo: ", err)
+		log.Printf("Error parseando el archivo: %v", err)
+		http.Error(res, "Error parseando el archivo", http.StatusInternalServerError)
 		return
 	}
-	err = t.ExecuteTemplate(res, fileName, Variable)
+
+	err = t.ExecuteTemplate(res, fileName, variable)
 	if err != nil {
-		fmt.Println("Error ejecutando el archivo: ", err)
+		log.Printf("Error ejecutando el archivo: %v", err)
+		http.Error(res, "Error ejecutando el archivo", http.StatusInternalServerError)
 		return
 	}
+
+	log.Println("Centroides encontrados y enviados!")
 }
 
 func mainPage(w http.ResponseWriter, r *http.Request) {
