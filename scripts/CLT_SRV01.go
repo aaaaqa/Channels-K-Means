@@ -40,7 +40,8 @@ func readAsArray(s string) []float64 {
 }
 
 var host string = "10.1.0.4"
-var remote string = "172.212.83.254"
+var remote []string
+var currentWorker = 0
 
 func fetchDataset(url string) ([]float64, []float64, error) {
 	response, err := http.Get(url)
@@ -129,12 +130,13 @@ func trainKmeans(res http.ResponseWriter, req *http.Request) {
 	}
 
 	// Open connection with the worker nodes
-	addresses := []string{remote + ":8001"} // Add server addresses
+	addresses := []string{remote[currentWorker] + ":8001"} // Add server addresses
+	currentWorker = (currentWorker + 1) % 2
 	for _, address := range addresses {
 		err = sendData(data, address)
 		if err != nil {
 			io.WriteString(res, "Error enviando datos al nodo.")
-			log.Println("Error enviado datos a", address, remote+":8001", err)
+			log.Println("Error enviado los datos...", err)
 			return
 		}
 	}
@@ -273,5 +275,7 @@ func handleRequests() {
 }
 
 func main() {
+	remote = append(remote, "172.212.83.254")
+	remote = append(remote, "48.217.83.50")
 	handleRequests()
 }
