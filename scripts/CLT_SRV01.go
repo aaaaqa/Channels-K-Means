@@ -39,7 +39,6 @@ func readAsArray(s string) []float64 {
 	return X
 }
 
-var host string = "10.1.0.4"
 var remote []string
 var currentWorker = 0
 
@@ -142,7 +141,7 @@ func trainKmeans(res http.ResponseWriter, req *http.Request) {
 	}
 
 	// Await a response
-	ln, err := net.Listen("tcp", host+":8002")
+	ln, err := net.Listen("tcp", ":8002")
 	if err != nil {
 		io.WriteString(res, "Error empezando servidor.")
 		log.Println("Error empezando servidor:", err)
