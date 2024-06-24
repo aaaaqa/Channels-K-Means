@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	file, err := os.Open("scripts/dataset.txt")
+	file, err := os.Open("dataset.txt")
 	if err != nil {
 		fmt.Println("Error opening file:", err)
 		return
