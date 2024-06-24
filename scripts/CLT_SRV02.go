@@ -9,7 +9,8 @@ import (
 	"strings"
 )
 
-var host string = "26.114.63.141"
+var host string = "192.168.1.39"
+var remote string = "192.168.1.39"
 
 func sendData(centroids [][]float64, labels []int, address string) error {
 	conn, err := net.Dial("tcp", address)
@@ -51,14 +52,14 @@ func handleConnection(conn net.Conn) {
 	kmeansInstance := kmeans.NewKMeans(data, k, maxIter)
 	kmeansInstance.Fit()
 
-	err := sendData(kmeansInstance.Centroids(), kmeansInstance.Labels(), host+":8002")
+	err := sendData(kmeansInstance.Centroids(), kmeansInstance.Labels(), remote+":8002")
 	if err != nil {
-		fmt.Println("Error sending data to", host+":8002", ":", err)
+		fmt.Println("Error sending data to", remote+":8002", ":", err)
 	}
 }
 
 func main() {
-	ln, err := net.Listen("tcp", ":8001")
+	ln, err := net.Listen("tcp", host+":8001")
 	if err != nil {
 		fmt.Println("Error starting server:", err)
 		return
