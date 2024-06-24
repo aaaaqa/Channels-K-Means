@@ -9,17 +9,17 @@ import (
 	"net/http"
 
 	//"os"
+	"html/template"
 	"strconv"
 	"strings"
-	"html/template"
 )
 
 type Variables struct {
 	Label_count map[int]int
-	Centroid []string
-	Income []float64
-	Age []float64
-	Label []string
+	Centroid    []string
+	Income      []float64
+	Age         []float64
+	Label       []string
 }
 
 var centroids []string
@@ -28,18 +28,20 @@ var incomes []float64
 var ages []float64
 
 func readAsArray(s string) []float64 {
-    // X := make([]float64, 1000000)
-    var X []float64
-    S := strings.Split(strings.TrimSpace(s), ", ")
-    for _, s := range S {
-        temp, _ := strconv.ParseFloat(s, 64)
-        X = append(X, temp)
-    }
+	// X := make([]float64, 1000000)
+	var X []float64
+	S := strings.Split(strings.TrimSpace(s), ", ")
+	for _, s := range S {
+		temp, _ := strconv.ParseFloat(s, 64)
+		X = append(X, temp)
+	}
 
-    return X
+	return X
 }
 
-var host string = "26.114.63.141"
+var host string = "10.1.0.4"
+var remote []string
+var currentWorker = 0
 
 func fetchDataset(url string) ([]float64, []float64, error) {
 	response, err := http.Get(url)
@@ -115,7 +117,7 @@ func trainKmeans(res http.ResponseWriter, req *http.Request) {
 	//res.Header().Set("Content-Type", "application/json")
 
 	// Fetching the data
-	url := "https://raw.githubusercontent.com/aaaaqa/Channels-K-Means/main/dataset.txt"
+	url := "https://raw.githubusercontent.com/aaaaqa/Channels-K-Means/main/dataset1.txt"
 	incomes, ages, err := fetchDataset(url)
 	if err != nil {
 		fmt.Println("Error buscando dataset:", err)
@@ -128,18 +130,19 @@ func trainKmeans(res http.ResponseWriter, req *http.Request) {
 	}
 
 	// Open connection with the worker nodes
-	addresses := []string{host + ":8001"} // Add server addresses
+	addresses := []string{remote[currentWorker] + ":8001"} // Add server addresses
+	currentWorker = (currentWorker + 1) % 2
 	for _, address := range addresses {
 		err = sendData(data, address)
 		if err != nil {
 			io.WriteString(res, "Error enviando datos al nodo.")
-			log.Println("Error enviado datos a", address, ":8001", err)
+			log.Println("Error enviado los datos...", err)
 			return
 		}
 	}
 
 	// Await a response
-	ln, err := net.Listen("tcp", ":8002")
+	ln, err := net.Listen("tcp", host+":8002")
 	if err != nil {
 		io.WriteString(res, "Error empezando servidor.")
 		log.Println("Error empezando servidor:", err)
@@ -272,5 +275,7 @@ func handleRequests() {
 }
 
 func main() {
+	remote = append(remote, "172.212.83.254")
+	remote = append(remote, "48.217.83.50")
 	handleRequests()
 }
